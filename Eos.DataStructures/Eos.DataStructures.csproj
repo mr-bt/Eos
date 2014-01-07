@@ -50,6 +50,7 @@
     <Compile Include="LazySlim.cs" />
     <Compile Include="LazySlimDynamicInitializationException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RingBuffer.cs" />
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
