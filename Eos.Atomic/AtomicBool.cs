@@ -175,7 +175,7 @@ namespace Eos.Atomic
         /// <param name="obj">The comparand.</param>
         /// <returns>
         /// <para>True if equals.</para>
-        /// <para>False if distinct.</para>
+        /// <para>False if distinct or null.</para>
         /// </returns>
         public override bool Equals(object obj)
         {
