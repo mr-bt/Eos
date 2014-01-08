@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -10,6 +11,7 @@ namespace Eos.Atomic
     /// <para>For complext operations (e.g. multiplication) it's used non-blocking approach with 
     /// SpinWait and Interlocked operations.</para>
     /// </summary>
+    [DebuggerDisplay("{_value}")]
     public struct AtomicInt : IComparable<AtomicInt>, IEquatable<AtomicInt>
     {
         private int _value;
