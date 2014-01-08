@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -12,6 +13,7 @@ namespace Eos.Atomic
     /// <para>NOTE: Running on a 32-bits CPU and using CPU fences always use full fence to read/write 
     /// as the CPU will perform two operations instead of 1 and then not atomic.</para>
     /// </summary>
+    [DebuggerDisplay("{_value}")]
     public struct AtomicLong : IComparable<AtomicLong>, IEquatable<AtomicLong>
     {
         private long _value;
