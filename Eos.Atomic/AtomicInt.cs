@@ -240,11 +240,27 @@ namespace Eos.Atomic
             return ReadFullFence().GetHashCode();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
         public bool Equals(AtomicInt other)
         {
             return ReadFullFence() == other.ReadFullFence();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="obj">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct or null.</para>
+        /// </returns>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
@@ -255,6 +271,15 @@ namespace Eos.Atomic
             return obj is AtomicInt && Equals((AtomicInt)obj);
         }
 
+        /// <summary>
+        /// Compares two AtomicInt values using the full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>Less than zero: This instance precedes obj in the sort order.</para>
+        /// <para>Zero: This instance occurs in the same position in the sort order as obj.</para>
+        /// <para>Greater than zero: This instance follows obj in the sort order.</para>
+        /// </returns>
         public int CompareTo(AtomicInt other)
         {
             return ReadFullFence().CompareTo(other.ReadAcquireFence());
