@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -12,6 +13,7 @@ namespace Eos.Atomic
     /// <para>NOTE: Running on a 32-bits CPU and using CPU fences always use full fence to read/write 
     /// as the CPU will perform two operations instead of 1 and then not atomic.</para>
     /// </summary>
+    [DebuggerDisplay("{_value}")]
     public struct AtomicLong : IComparable<AtomicLong>, IEquatable<AtomicLong>
     {
         private long _value;
@@ -240,11 +242,27 @@ namespace Eos.Atomic
             return ReadFullFence().GetHashCode();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
         public bool Equals(AtomicLong other)
         {
             return ReadFullFence() == other.ReadFullFence();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="obj">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct or null.</para>
+        /// </returns>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
@@ -255,6 +273,15 @@ namespace Eos.Atomic
             return obj is AtomicLong && Equals((AtomicLong)obj);
         }
 
+        /// <summary>
+        /// Compares two AtomicLong values using the full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>Less than zero: This instance precedes obj in the sort order.</para>
+        /// <para>Zero: This instance occurs in the same position in the sort order as obj.</para>
+        /// <para>Greater than zero: This instance follows obj in the sort order.</para>
+        /// </returns>
         public int CompareTo(AtomicLong other)
         {
             return ReadFullFence().CompareTo(other.ReadAcquireFence());

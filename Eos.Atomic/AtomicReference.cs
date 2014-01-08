@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -8,6 +9,7 @@ namespace Eos.Atomic
     /// <summary>
     /// Allows an reference to be updated atomically using the memory barrier semantics.
     /// </summary>
+    [DebuggerDisplay("{_value}")]
     public struct AtomicReference<T> : IEquatable<AtomicReference<T>>
         where T : class
     {
@@ -150,11 +152,27 @@ namespace Eos.Atomic
             return ReadFullFence().GetHashCode();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
         public bool Equals(AtomicReference<T> other)
         {
             return ReadFullFence() == other.ReadFullFence();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="obj">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct or null.</para>
+        /// </returns>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))

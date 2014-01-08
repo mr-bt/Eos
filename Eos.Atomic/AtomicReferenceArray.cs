@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -10,7 +11,8 @@ namespace Eos.Atomic
     /// <summary>
     /// Allows an reference array to be updated atomically using the memory barrier semantics.
     /// </summary>
-    public struct AtomicArray<T> : IEnumerable<T>
+    [DebuggerTypeProxy(typeof(AtomicReferenceArray<>.AtomicReferenceArrayDebugView<>))]
+    public struct AtomicReferenceArray<T> : IEnumerable<T>
         where T : class
     {
         private readonly T[] _array;
@@ -19,7 +21,7 @@ namespace Eos.Atomic
         /// Create a reference array <see cref="AtomicReferenceArray{T}" /> copying the values from the source array.
         /// </summary>
         /// <param name="array">Source array.</param>
-        public AtomicArray(T[] array)
+        public AtomicReferenceArray(T[] array)
         {
             if (array == null)
             {
@@ -39,7 +41,7 @@ namespace Eos.Atomic
         /// Create a new reference array <see cref="AtomicReferenceArray{T}" /> with the specified length.
         /// </summary>
         /// <param name="length">Array length.</param>
-        public AtomicArray(int length)
+        public AtomicReferenceArray(int length)
         {
             if (length < 1)
             {
@@ -200,11 +202,27 @@ namespace Eos.Atomic
             return GetEnumerator();
         }
 
-        public bool Equals(AtomicArray<T> other)
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
+        public bool Equals(AtomicReferenceArray<T> other)
         {
             return ReferenceEquals(_array, other._array);
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="obj">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct or null.</para>
+        /// </returns>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
@@ -212,19 +230,19 @@ namespace Eos.Atomic
                 return false;
             }
 
-            return obj is AtomicArray<T> && Equals((AtomicArray<T>)obj);
+            return obj is AtomicReferenceArray<T> && Equals((AtomicReferenceArray<T>)obj);
         }
 
+        // todo: make it thread safe
         public IEnumerator<T> GetEnumerator()
         {
-            var i = new AtomicInt(-1);
-            var index = 0;
-            do
+            var snapshot = new T[Length];
+            Array.Copy(_array, snapshot, Length);
+
+            for (var index = 0; index < Length; index++)
             {
-                index = i.IncrementAndGet();
-                yield return _array[index];
+                yield return snapshot[index];
             }
-            while (index != _array.Length);
         }
 
         /// <summary>
@@ -235,6 +253,17 @@ namespace Eos.Atomic
         public override string ToString()
         {
             return _array.ToString();
+        }
+
+        internal class AtomicReferenceArrayDebugView<T>
+            where T : class
+        {
+            internal AtomicReferenceArrayDebugView(AtomicReferenceArray<T> value)
+            {
+                Lenght = value.Length;
+            }
+
+            public int Lenght { get; set; }
         }
     }
 }
