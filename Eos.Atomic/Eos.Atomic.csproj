@@ -45,7 +45,7 @@
     <Compile Include="AtomicLong.cs" />
     <Compile Include="AtomicReference.cs" />
     <Compile Include="AtomicBool.cs" />
-    <Compile Include="AtomicArray.cs" />
+    <Compile Include="AtomicReferenceArray.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
