@@ -44,6 +44,7 @@
   <ItemGroup>
     <Compile Include="AtomicBoolTests.cs" />
     <Compile Include="AtomicIntTests.cs" />
+    <Compile Include="AtomicLongTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
