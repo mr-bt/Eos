@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -9,6 +10,7 @@ namespace Eos.Atomic
     /// Allows an bool to be updated atomically using the memory barrier semantics.
     /// <para>Note: The bool is converted into a 32-bit integer.</para>
     /// </summary>
+    [DebuggerTypeProxy(typeof(AtomicBoolDebugView))]
     public struct AtomicBool : IComparable<AtomicBool>, IEquatable<AtomicBool>
     {
         private int _value;
@@ -154,11 +156,27 @@ namespace Eos.Atomic
             return ReadFullFence().GetHashCode();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
         public bool Equals(AtomicBool other)
         {
             return ReadFullFence() == other.ReadFullFence();
         }
 
+        /// <summary>
+        /// Return if the instances are equal using full fence semantic.
+        /// </summary>
+        /// <param name="obj">The comparand.</param>
+        /// <returns>
+        /// <para>True if equals.</para>
+        /// <para>False if distinct.</para>
+        /// </returns>
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
@@ -169,6 +187,15 @@ namespace Eos.Atomic
             return obj is AtomicBool && Equals((AtomicBool)obj);
         }
 
+        /// <summary>
+        /// Compares two AtomicBool values using the full fence semantic.
+        /// </summary>
+        /// <param name="other">The comparand.</param>
+        /// <returns>
+        /// <para>Less than zero: This instance precedes obj in the sort order.</para>
+        /// <para>Zero: This instance occurs in the same position in the sort order as obj.</para>
+        /// <para>Greater than zero: This instance follows obj in the sort order.</para>
+        /// </returns>
         public int CompareTo(AtomicBool other)
         {
             return ReadFullFence().CompareTo(other.ReadAcquireFence());
@@ -194,13 +221,23 @@ namespace Eos.Atomic
                 throw new ArgumentOutOfRangeException("value", "Must be 0 or 1");
             }
 
-            return value == 0;
+            return value != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int ToInt(bool value)
         {
             return value ? 1 : 0;
+        }
+
+        internal class AtomicBoolDebugView
+        {
+            internal AtomicBoolDebugView(AtomicBool value)
+            {
+                value = value;
+            }
+
+            public bool Value { get; set; }
         }
     }
 }
