@@ -238,16 +238,26 @@ namespace Eos.Atomic
             return obj is AtomicReferenceArrayPadded<T> && Equals((AtomicReferenceArrayPadded<T>)obj);
         }
 
-        // todo: make it thread safe
         public IEnumerator<T> GetEnumerator()
         {
-            var snapshot = new T[Length];
-            Array.Copy(_array, snapshot, Length);
+            var snapshot = ToArray();
 
             for (var index = 0; index < Length; index++)
             {
                 yield return snapshot[index];
             }
+        }
+
+        public T[] ToArray()
+        {
+            var snapshot = new T[_array.Length];
+
+            for (var i = 0; i < _array.Length; i++)
+            {
+                snapshot[i] = ReadAcquireFence(i);
+            }
+
+            return snapshot;
         }
 
         /// <summary>
