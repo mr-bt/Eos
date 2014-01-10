@@ -234,7 +234,7 @@ namespace Eos.Atomic
         {
             internal AtomicBoolDebugView(AtomicBool value)
             {
-                value = value;
+                Value = value.ReadAcquireFence();
             }
 
             public bool Value { get; set; }
