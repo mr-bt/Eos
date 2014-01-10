@@ -1,37 +1,81 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace Eos.Atomic
 {
     /// <summary>
-    /// Allows an bool to be updated atomically using the memory barrier semantics.
-    /// <para>Note: The bool is converted into a 32-bit integer.</para>
+    /// Allows an reference array to be updated atomically using the memory barrier semantics.
+    /// <para>It prevents false sharing by ensuring that an instance will live on it's own cache line.</para>
+    /// <para><seealso cref="http://www.drdobbs.com/parallel/eliminate-false-sharing/217500206?pgno=4"/></para>
     /// </summary>
-    [DebuggerTypeProxy(typeof(AtomicBoolDebugView))]
-    public struct AtomicBool : IComparable<AtomicBool>, IEquatable<AtomicBool>
+    [DebuggerTypeProxy(typeof(AtomicReferenceArrayPadded<>.AtomicReferenceArrayPaddedDebugView<>))]
+    [StructLayout(LayoutKind.Explicit, Size = AtomicConstants.CacheLineSize * 2)]
+    public struct AtomicReferenceArrayPadded<T> : IEnumerable<T>
+        where T : class
     {
-        private int _value;
+        [FieldOffset(AtomicConstants.CacheLineSize)]
+        private readonly T[] _array;
 
         /// <summary>
-        /// Create a new <see cref="AtomicBool" /> with the given initial value.
+        /// Create a reference array <see cref="AtomicReferenceArrayPadded{T}" /> copying the values from the source array.
         /// </summary>
-        /// <param name="value">Initial value.</param>
-        public AtomicBool(bool value)
+        /// <param name="array">Source array.</param>
+        public AtomicReferenceArrayPadded(T[] array)
         {
-            _value = ToInt(value);
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+
+            if (array.Length == 0)
+            {
+                throw new ArgumentOutOfRangeException("array", "Array length must be greater than zero");
+            }
+
+            _array = new T[array.Length];
+            Array.Copy(array, _array, array.Length);
         }
 
-        public static bool operator ==(AtomicBool left, AtomicBool right)
+        /// <summary>
+        /// Create a new reference array <see cref="AtomicReferenceArrayPadded{T}" /> with the specified length.
+        /// </summary>
+        /// <param name="length">Array length.</param>
+        public AtomicReferenceArrayPadded(int length)
         {
-            return left.Equals(right);
+            if (length < 1)
+            {
+                throw new ArgumentOutOfRangeException("length", "Must be greater than 0");
+            }
+
+            _array = new T[length];
         }
 
-        public static bool operator !=(AtomicBool left, AtomicBool right)
+        /// <summary>
+        /// Length of the array.
+        /// </summary>
+        public int Length
         {
-            return !left.Equals(right);
+            get { return _array.Length; }
+        }
+
+        [IndexerName("Array")]
+        public T this[int index]
+        {
+            get
+            {
+                return ReadAcquireFence(index);
+            }
+
+            set
+            {
+                WriteReleaseFence(index, value);
+            }
         }
 
         /// <summary>
@@ -39,9 +83,9 @@ namespace Eos.Atomic
         /// </summary>
         /// <returns>The current value.</returns>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public bool ReadUnfenced()
+        public T ReadUnfenced(int index)
         {
-            return ToBool(_value);
+            return _array[index];
         }
 
         /// <summary>
@@ -49,12 +93,12 @@ namespace Eos.Atomic
         /// </summary>
         /// <returns>The most up-to-date value.</returns>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public bool ReadAcquireFence()
+        public T ReadAcquireFence(int index)
         {
-            var value = _value;
+            var value = _array[index];
             Interlocked.MemoryBarrier();
 
-            return ToBool(value);
+            return value;
         }
 
         /// <summary>
@@ -62,13 +106,13 @@ namespace Eos.Atomic
         /// </summary>
         /// <returns>The most up-to-date value.</returns>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public bool ReadFullFence()
+        public T ReadFullFence(int index)
         {
             Interlocked.MemoryBarrier();
-            var value = _value;
+            var value = _array[index];
             Interlocked.MemoryBarrier();
 
-            return ToBool(value);
+            return value;
         }
 
         /// <summary>
@@ -76,84 +120,91 @@ namespace Eos.Atomic
         /// </summary>
         /// <returns>The current value.</returns>
         [MethodImpl(MethodImplOptions.NoOptimization)]
-        public bool ReadCompilerOnlyFence()
+        public T ReadCompilerOnlyFence(int index)
         {
-            return ToBool(_value);
+            return _array[index];
         }
 
         /// <summary>
         /// Write the value applying release fence semantic.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value.</param>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public void WriteReleaseFence(bool newValue)
+        public void WriteReleaseFence(int index, T newValue)
         {
             Interlocked.MemoryBarrier();
-            _value = ToInt(newValue);
+            _array[index] = newValue;
         }
 
         /// <summary>
         /// Write the value applying full fence semantic.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value.</param>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public void WriteFullFence(bool newValue)
+        public void WriteFullFence(int index, T newValue)
         {
             Interlocked.MemoryBarrier();
-            _value = ToInt(newValue);
+            _array[index] = newValue;
             Interlocked.MemoryBarrier();
         }
 
         /// <summary>
         /// Write the value applying a compiler fence only, no CPU fence is applied.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value</param>
         [MethodImpl(MethodImplOptions.NoOptimization)]
-        public void WriteCompilerOnlyFence(bool newValue)
+        public void WriteCompilerOnlyFence(int index, T newValue)
         {
-            _value = ToInt(newValue);
+            _array[index] = newValue;
         }
 
         /// <summary>
         /// Write without applying any fence.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value.</param>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public void WriteUnfenced(bool newValue)
+        public void WriteUnfenced(int index, T newValue)
         {
-            _value = ToInt(newValue);
+            _array[index] = newValue;
         }
 
         /// <summary>
         /// Atomically set the value to the given updated value if the current value equals the comparand.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value.</param>
         /// <param name="comparand">The comparand (expected current value).</param>
         /// <returns>The original value.</returns>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public bool CompareExchange(bool newValue, bool comparand)
+        public T CompareExchange(int index, T newValue, T comparand)
         {
-            var originalValue = Interlocked.CompareExchange(ref _value, ToInt(newValue), ToInt(comparand));
-
-            return ToBool(originalValue);
+            return Interlocked.CompareExchange(ref _array[index], newValue, comparand);
         }
 
         /// <summary>
         /// Atomically set the value to the given updated value.
         /// </summary>
+        /// <param name="index">Array index.</param>
         /// <param name="newValue">The new value.</param>
         /// <returns>The original value.</returns>
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-        public bool Exchange(bool newValue)
+        public T Exchange(int index, T newValue)
         {
-            var originalValue = Interlocked.Exchange(ref _value, ToInt(newValue));
-
-            return ToBool(originalValue);
+            return Interlocked.Exchange(ref _array[index], newValue);
         }
 
         public override int GetHashCode()
         {
-            return ReadFullFence().GetHashCode();
+            return _array.GetHashCode();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
 
         /// <summary>
@@ -164,9 +215,9 @@ namespace Eos.Atomic
         /// <para>True if equals.</para>
         /// <para>False if distinct.</para>
         /// </returns>
-        public bool Equals(AtomicBool other)
+        public bool Equals(AtomicReferenceArrayPadded<T> other)
         {
-            return ReadFullFence() == other.ReadFullFence();
+            return ReferenceEquals(_array, other._array);
         }
 
         /// <summary>
@@ -184,21 +235,19 @@ namespace Eos.Atomic
                 return false;
             }
 
-            return obj is AtomicBool && Equals((AtomicBool)obj);
+            return obj is AtomicReferenceArrayPadded<T> && Equals((AtomicReferenceArrayPadded<T>)obj);
         }
 
-        /// <summary>
-        /// Compares two AtomicBool values using the full fence semantic.
-        /// </summary>
-        /// <param name="other">The comparand.</param>
-        /// <returns>
-        /// <para>Less than zero: This instance precedes obj in the sort order.</para>
-        /// <para>Zero: This instance occurs in the same position in the sort order as obj.</para>
-        /// <para>Greater than zero: This instance follows obj in the sort order.</para>
-        /// </returns>
-        public int CompareTo(AtomicBool other)
+        // todo: make it thread safe
+        public IEnumerator<T> GetEnumerator()
         {
-            return ReadFullFence().CompareTo(other.ReadAcquireFence());
+            var snapshot = new T[Length];
+            Array.Copy(_array, snapshot, Length);
+
+            for (var index = 0; index < Length; index++)
+            {
+                yield return snapshot[index];
+            }
         }
 
         /// <summary>
@@ -208,36 +257,18 @@ namespace Eos.Atomic
         [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
         public override string ToString()
         {
-            var value = ReadFullFence();
-
-            return value.ToString();
+            return _array.ToString();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool ToBool(int value)
+        internal class AtomicReferenceArrayPaddedDebugView<T>
+            where T : class
         {
-            if (value < 0 || value > 1)
+            internal AtomicReferenceArrayPaddedDebugView(AtomicReferenceArrayPadded<T> value)
             {
-                throw new ArgumentOutOfRangeException("value", "Must be 0 or 1");
+                Lenght = value.Length;
             }
 
-            return value != 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int ToInt(bool value)
-        {
-            return value ? 1 : 0;
-        }
-
-        internal class AtomicBoolDebugView
-        {
-            internal AtomicBoolDebugView(AtomicBool value)
-            {
-                Value = value.ReadAcquireFence();
-            }
-
-            public bool Value { get; set; }
+            public int Lenght { get; set; }
         }
     }
 }

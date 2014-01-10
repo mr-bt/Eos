@@ -2,34 +2,39 @@
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace Eos.Atomic
 {
     /// <summary>
     /// Allows an bool to be updated atomically using the memory barrier semantics.
+    /// <para>It prevents false sharing by ensuring that an instance will live on it's own cache line.</para>
+    /// <para><seealso cref="http://www.drdobbs.com/parallel/eliminate-false-sharing/217500206?pgno=4"/></para>
     /// <para>Note: The bool is converted into a 32-bit integer.</para>
     /// </summary>
     [DebuggerTypeProxy(typeof(AtomicBoolDebugView))]
-    public struct AtomicBool : IComparable<AtomicBool>, IEquatable<AtomicBool>
+    [StructLayout(LayoutKind.Explicit, Size = AtomicConstants.CacheLineSize * 2)]
+    public struct AtomicBoolPadded : IComparable<AtomicBoolPadded>, IEquatable<AtomicBoolPadded>
     {
+        [FieldOffset(AtomicConstants.CacheLineSize)]
         private int _value;
 
         /// <summary>
         /// Create a new <see cref="AtomicBool" /> with the given initial value.
         /// </summary>
         /// <param name="value">Initial value.</param>
-        public AtomicBool(bool value)
+        public AtomicBoolPadded(bool value)
         {
             _value = ToInt(value);
         }
 
-        public static bool operator ==(AtomicBool left, AtomicBool right)
+        public static bool operator ==(AtomicBoolPadded left, AtomicBoolPadded right)
         {
             return left.Equals(right);
         }
 
-        public static bool operator !=(AtomicBool left, AtomicBool right)
+        public static bool operator !=(AtomicBoolPadded left, AtomicBoolPadded right)
         {
             return !left.Equals(right);
         }
@@ -164,7 +169,7 @@ namespace Eos.Atomic
         /// <para>True if equals.</para>
         /// <para>False if distinct.</para>
         /// </returns>
-        public bool Equals(AtomicBool other)
+        public bool Equals(AtomicBoolPadded other)
         {
             return ReadFullFence() == other.ReadFullFence();
         }
@@ -184,7 +189,7 @@ namespace Eos.Atomic
                 return false;
             }
 
-            return obj is AtomicBool && Equals((AtomicBool)obj);
+            return obj is AtomicBoolPadded && Equals((AtomicBoolPadded)obj);
         }
 
         /// <summary>
@@ -196,7 +201,7 @@ namespace Eos.Atomic
         /// <para>Zero: This instance occurs in the same position in the sort order as obj.</para>
         /// <para>Greater than zero: This instance follows obj in the sort order.</para>
         /// </returns>
-        public int CompareTo(AtomicBool other)
+        public int CompareTo(AtomicBoolPadded other)
         {
             return ReadFullFence().CompareTo(other.ReadAcquireFence());
         }
