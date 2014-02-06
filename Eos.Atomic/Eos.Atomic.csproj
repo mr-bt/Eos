@@ -67,8 +67,6 @@
     <Compile Include="AtomicBoolPadded.cs" />
     <Compile Include="AtomicIntPadded.cs" />
     <Compile Include="AtomicLongPadded.cs" />
-    <Compile Include="AtomicReferencePadded.cs" />
-    <Compile Include="AtomicReferenceArrayPadded.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
