@@ -214,6 +214,48 @@ namespace Eos.Atomic
         }
 
         /// <summary>
+        /// Atomically increments the current value and calculates the module with the secondOperand.
+        /// <para>To ensure the atomicity it relies on a SpinWait and a CompareExchange.</para>
+        /// </summary>
+        /// <param name="secondOperand">The second operand of a module operation.</param>
+        /// <param name="originalValue">The original value.</param>
+        /// <returns>The module of the current value by the the secondOperand.</returns>
+        [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
+        public long IncrementModuleAndGet(long secondOperand, out long originalValue)
+        {
+            return AddModuleAndGet(1, secondOperand, out originalValue);
+        }
+
+        /// <summary>
+        /// Atomically add delta to the current value and calculates the module with the secondOperand.
+        /// <para>To ensure the atomicity it relies on a SpinWait and a CompareExchange.</para>
+        /// </summary>
+        /// <param name="delta">The value to be added.</param>
+        /// <param name="secondOperand">The second operand of a module operation.</param>
+        /// <param name="originalValue">The original value.</param>
+        /// <returns>The module of the current value by the the secondOperand.</returns>
+        [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
+        public long AddModuleAndGet(long delta, long secondOperand, out long originalValue)
+        {
+            var spinWait = new SpinWait();
+
+            do
+            {
+                var snapshot = ReadAcquireFence();
+                var nextPosition = (snapshot + delta) % secondOperand;
+
+                originalValue = CompareExchange(nextPosition, snapshot);
+                if (snapshot == originalValue)
+                {
+                    return nextPosition;
+                }
+
+                spinWait.SpinOnce();
+            }
+            while (true);
+        }
+
+        /// <summary>
         /// Atomically calculates the multiplication of the current value by the secondOperand.
         /// <para>To ensure the atomicity it relies on a SpinWait and a CompareExchange.</para>
         /// </summary>
