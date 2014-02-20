@@ -28,11 +28,6 @@ namespace Eos.Atomic
                 throw new ArgumentNullException("array");
             }
 
-            if (array.Length == 0)
-            {
-                throw new ArgumentOutOfRangeException("array", "Array length must be greater than zero");
-            }
-
             _array = new T[array.Length];
             Array.Copy(array, _array, array.Length);
         }
@@ -43,9 +38,9 @@ namespace Eos.Atomic
         /// <param name="length">Array length.</param>
         public AtomicReferenceArray(int length)
         {
-            if (length < 1)
+            if (length < 0)
             {
-                throw new ArgumentOutOfRangeException("length", "Must be greater than 0");
+                throw new ArgumentOutOfRangeException("length", "Must be greater or equal to 0");
             }
 
             _array = new T[length];
